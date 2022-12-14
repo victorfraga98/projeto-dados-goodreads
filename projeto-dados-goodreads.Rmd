@@ -1,0 +1,200 @@
+---
+title: "Trabalho Projeto de Dados"
+output: html_notebook
+---
+# Preparação do ambiente
+Chamada das livrarias que precisarão para utilização de determinadas funções
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+setwd("C:/Users/victo/Downloads/goodreads")
+```
+# Etapa 01: perguntas de pesquisa
+Livros mais antigos são mais ou menos avaliados?
+
+A quantidade de avaliações muda dependendo da empresa que publicou o livro?
+
+Há alguma relação entre o autor do livro e as avaliações dadas?
+
+# Etapa 02: base de dados
+A base de dados utilizada é a do site Goodreads, plataforma online com mais de 125 milhões de usuários
+em que os leitores publicam avaliações e recomendações de livros.
+
+A Goodreads disponibiliza uma API pública para consulta dos livros em sua base de dados (https://www.goodreads.com/api), mas ela foi desativada em dezembro de 2020, persistindo o acesso apenas aos usuários anteriores a essa data. 
+
+No site Kaggle, comunidade online de ciência de dados, foi disponibilizada por um usuário uma base de dados atualizada da data de 3 de dezembro de 2020 (https://www.kaggle.com/datasets/bahramjannesarr/goodreads-book-datasets-10m). Essa base de dados foi extraída da API do site Goodreads quando ela ainda funcionava.
+
+# Etapa 03: qualidade dos dados
+Ao analisar a base de dados, verificamos diversas questões a serem tratadas. A leitura de caracteres especiais e delimitadores foi feita corretamente, bem como o tratamento de casos nulos com "NA". Porém, em alguns dos arquivos .csv, a coluna referente ao dia de publicação do livro se referia ao mês, e vice-versa; além disso, a coluna do número de páginas do livro também estava diferente em relação à letra maiúscula do cabeçalho, sendo tratado como diferentes pelo R, já que ele trata como case-sensitive.
+```{r}
+books_files <- list.files(pattern = 'book.*csv')
+
+books_read <- vector('list',length(books_files))
+
+for (i in 1:length(books_files)) {
+  temp <- read_csv(books_files[i])
+  if (max(temp$PublishMonth) > 12){
+    colnames(temp)[colnames(temp)== 'PublishMonth'] <- 'pubday'
+    colnames(temp)[colnames(temp)== 'PublishDay'] <- 'pubmonth'
+  } else {
+    colnames(temp)[colnames(temp)== 'PublishDay'] <- 'pubday'
+    colnames(temp)[colnames(temp)== 'PublishMonth'] <- 'pubmonth'
+  }
+  colnames(temp)[colnames(temp)== 'pagesNumber'] <- 'PagesNumber'
+  books_read[[i]] <- temp
+}
+rm(temp)
+books <- books_read %>%
+  bind_rows()
+```
+
+Sendo tratadas o dia e mês da data de publicação, unimos os dois com o ano de publicação em uma única coluna com a data completa no formato DD/MM/AAAA. Também são tratadas as colunas referentes à quantidade de avaliações de cada quantidade de estrelas. 
+
+É importante destacar que há uma diferença entre "tipos de avaliações": há as avaliações numéricas de 1 a 5 ("ratings") e há as avaliações escritas ("reviews").
+```{r}
+books$PublishDate <- paste(books$pubday, books$pubmonth, books$PublishYear, sep = "/")
+books$PublishDate <- as.Date(books$PublishDate, '%d/%m/%Y')
+  
+books$RatingDist1 = as.numeric(sub('1:','',books$RatingDist1))
+colnames(books)[colnames(books)== 'RatingDist1'] <- 'Ratings1star'
+books$RatingDist2 = as.numeric(sub('2:','',books$RatingDist2))
+colnames(books)[colnames(books)== 'RatingDist2'] <- 'Ratings2stars'
+books$RatingDist3 = as.numeric(sub('3:','',books$RatingDist3))
+colnames(books)[colnames(books)== 'RatingDist3'] <- 'Ratings3stars'
+books$RatingDist4 = as.numeric(sub('4:','',books$RatingDist4))
+colnames(books)[colnames(books)== 'RatingDist4'] <- 'Ratings4stars'
+books$RatingDist5 = as.numeric(sub('5:','',books$RatingDist5))
+colnames(books)[colnames(books)== 'RatingDist5'] <- 'Ratings5stars'
+books$RatingDistTotal = as.numeric(sub('total:','',books$RatingDistTotal))
+colnames(books)[colnames(books)== 'RatingDistTotal'] <- 'TotalRatings'
+
+# Pode ser feita a mesma retirada dos trechos de cada coluna, mas utilizando a library "stringr":
+# books <- books %>%
+#   mutate(Ratings1star = str_sub(RatingDist1,3))
+```
+
+Pode ser realizada uma conferência se a soma das colunas referentes a cada avaliação é igual ao valor da coluna correspondente ao total de avaliações. Trazendo apenas valores TRUE significa que está correto.
+```{r}
+
+books_rating_check <- books %>% 
+  select(Ratings1star, Ratings2stars, Ratings3stars, Ratings4stars, Ratings5stars, TotalRatings) %>% 
+  mutate(TotalCheck = Ratings1star + Ratings2stars + Ratings3stars + Ratings4stars + Ratings5stars)
+books_rating_check$check <- ifelse(books_rating_check$TotalCheck == books_rating_check$TotalRatings, TRUE, FALSE) 
+books_rating_check$check %>%
+  table()
+```
+
+Selecionamos, então, apenas as colunas desejadas para as análises de variáveis e que serão utilizadas nos gráficos mais abaixo.
+```{r}
+books_selected <- books %>%
+  select('Name', 'Authors', 'PublishDate', 'PublishYear', 'Language', 'Publisher', 'PagesNumber', 'Rating', 'Ratings1star', 'Ratings2stars', 'Ratings3stars', 'Ratings4stars', 'Ratings5stars', 'TotalRatings', 'CountsOfReview')
+```
+
+Confere-se um resumo geral da tabela com as informações selecionadas: se há algum ponto fora da curva, se os valores estão no formato desejado, etc.
+```{r}
+head(books_selected)
+summary(books_selected)
+str(books_selected)
+```
+# Etapa 4: estatísticas descritivas
+rating
+qtd ratings
+qtd reviews
+qtd de livros por ano de publicação
+numero de páginas
+*qtd 1 estrela
+*qtd 5 estrela
+```{r}
+options(scipen=999)
+
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+books_selected %>% summarise(num_obs = n(),
+                             min = min(books_selected$PagesNumber),
+                             max = max(books_selected$PagesNumber),
+                             média = mean(books_selected$PagesNumber),
+                             moda = getmode(books_selected$PagesNumber),
+                             mediana = median(books_selected$PagesNumber),
+                             desvio_padrao = sd(books_selected$PagesNumber))
+summary(books_selected$PagesNumber)
+hist(books_selected$PagesNumber, main="Número de páginas", ylab="Frequência", xlab="Número de páginas")
+boxplot(books_selected$PagesNumber, main="Número de páginas", xlab="Número de páginas")
+
+sem_audios <- books_selected %>%
+  filter(PagesNumber >= 10 & PagesNumber <= 1000)
+hist(sem_audios$PagesNumber, main="Número de páginas", ylab="Frequência", xlab="Número de páginas")
+
+summary(books_selected$Rating)
+hist(books_selected$Rating, main="Avaliação média", ylab="Frequência", xlab="Avaliação média")
+boxplot(books_selected$Rating, main="Avaliação média", xlab="Avaliação média")
+
+summary(books_selected$TotalRatings)
+hist(books_selected$TotalRatings, main="Total de avaliações", ylab="Frequência", xlab="Total de avaliações")
+boxplot(books_selected$TotalRatings, main="Total de avaliações", xlab="Total de avaliações")
+
+summary(books_selected$CountsOfReview)
+hist(books_selected$CountsOfReview, main="Quantidade de avaliações escritas", ylab="Frequência", xlab="Quantidade de avaliações escritas")
+boxplot(books_selected$CountsOfReview, main="Quantidade de avaliações escritas", xlab="Quantidade de avaliações escritas")
+```
+```{r}
+descritivas <- books_selected %>%
+  select(PagesNumber, Rating, TotalRatings, CountsOfReview)
+colunas_descritivas = c(colnames(descritivas))
+
+for(i in 1:4){
+  print(summary(descritivas[i]))
+  hist(descritivas[[i]], main=colunas_descritivas[i], ylab="Frequência", xlab=colunas_descritivas[i])
+  boxplot(descritivas[[i]], main=colunas_descritivas[i], xlab=colunas_descritivas[i])
+}
+```
+
+# Etapa 5: indicadores
+
+Avaliação média por ano de publicação
+```{r}
+aval_ano <- books_selected %>%
+  filter(TotalRatings > 0 & PublishYear >= 1500 & PublishYear <= 2020) %>%
+  group_by(PublishYear) %>%
+  summarise(aval_media = mean(Rating),
+            count = n()) %>%
+  filter(count >=5) %>%
+  arrange(PublishYear)
+aval_ano
+```
+Quantidade total de avaliações por editora
+```{r}
+aval_editora <- books_selected %>%
+  group_by(Publisher) %>%
+  summarise(qtd = n()) %>%
+  arrange(desc(qtd))
+aval_editora
+```
+Avaliação média por autor
+Avaliação qtd por autor
+Review qtd por autor
+```{r}
+aval_autor <- books_selected %>%
+  filter(TotalRatings > 0) %>%
+  group_by(Authors) %>%
+  summarise(aval_media = mean(Rating),
+            count = n(),
+            qtd_aval = sum(TotalRatings),
+            qtd_rev = sum(CountsOfReview)) %>%
+  filter(count >= 5) %>%
+  arrange(desc(qtd_aval))
+aval_autor
+```
+
+# Etapa 6: gráficos
+```{r}
+graph1 <- ggplot(data=books_selected, aes(x=PublishDate, y=Rating)) +
+       geom_point() +
+       labs(title='Total de reviews por data', x='Data de publicação', y='Rating')
+graph1
+```
