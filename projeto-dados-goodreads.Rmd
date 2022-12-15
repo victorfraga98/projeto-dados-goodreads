@@ -3,14 +3,14 @@ title: "Trabalho Projeto de Dados"
 output: html_notebook
 ---
 # Preparação do ambiente
-Chamada das livrarias que precisarão para utilização de determinadas funções
-```{r}
+Chamada das livrarias que precisarão para utilização de determinadas funções e geração dos gráficos para análise.
+```{r echo=TRUE, results='hide'}
 library(readr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 
-setwd("C:/Users/victo/Downloads/goodreads")
+getwd()
 ```
 # Etapa 01: perguntas de pesquisa
 Livros mais antigos são mais ou menos avaliados?
@@ -29,24 +29,25 @@ No site Kaggle, comunidade online de ciência de dados, foi disponibilizada por 
 
 # Etapa 03: qualidade dos dados
 Ao analisar a base de dados, verificamos diversas questões a serem tratadas. A leitura de caracteres especiais e delimitadores foi feita corretamente, bem como o tratamento de casos nulos com "NA". Porém, em alguns dos arquivos .csv, a coluna referente ao dia de publicação do livro se referia ao mês, e vice-versa; além disso, a coluna do número de páginas do livro também estava diferente em relação à letra maiúscula do cabeçalho, sendo tratado como diferentes pelo R, já que ele trata como case-sensitive.
-```{r}
-books_files <- list.files(pattern = 'book.*csv')
+```{r echo=TRUE, results='hide'}
+books_files <- list.files(pattern = "book.*csv", recursive=TRUE)
 
-books_read <- vector('list',length(books_files))
+books_read <- vector("list",length(books_files))
 
 for (i in 1:length(books_files)) {
   temp <- read_csv(books_files[i])
   if (max(temp$PublishMonth) > 12){
-    colnames(temp)[colnames(temp)== 'PublishMonth'] <- 'pubday'
-    colnames(temp)[colnames(temp)== 'PublishDay'] <- 'pubmonth'
+    colnames(temp)[colnames(temp)== "PublishMonth"] <- "pubday"
+    colnames(temp)[colnames(temp)== "PublishDay"] <- "pubmonth"
   } else {
-    colnames(temp)[colnames(temp)== 'PublishDay'] <- 'pubday'
-    colnames(temp)[colnames(temp)== 'PublishMonth'] <- 'pubmonth'
+    colnames(temp)[colnames(temp)== "PublishDay"] <- "pubday"
+    colnames(temp)[colnames(temp)== "PublishMonth"] <- "pubmonth"
   }
-  colnames(temp)[colnames(temp)== 'pagesNumber'] <- 'PagesNumber'
+  colnames(temp)[colnames(temp)== "pagesNumber"] <- "PagesNumber"
   books_read[[i]] <- temp
 }
 rm(temp)
+
 books <- books_read %>%
   bind_rows()
 ```
@@ -55,23 +56,23 @@ Sendo tratadas o dia e mês da data de publicação, unimos os dois com o ano de
 
 É importante destacar que há uma diferença entre "tipos de avaliações": há as avaliações numéricas de 1 a 5 ("ratings") e há as avaliações escritas ("reviews").
 ```{r}
-books$PublishDate <- paste(books$pubday, books$pubmonth, books$PublishYear, sep = "/")
-books$PublishDate <- as.Date(books$PublishDate, '%d/%m/%Y')
+books$PublishDate <- paste(books$pubday, books$pubmonth, books$PublishYear, sep = "/") %>%
+  as.Date("%d/%m/%Y")
   
-books$RatingDist1 = as.numeric(sub('1:','',books$RatingDist1))
-colnames(books)[colnames(books)== 'RatingDist1'] <- 'Ratings1star'
-books$RatingDist2 = as.numeric(sub('2:','',books$RatingDist2))
-colnames(books)[colnames(books)== 'RatingDist2'] <- 'Ratings2stars'
-books$RatingDist3 = as.numeric(sub('3:','',books$RatingDist3))
-colnames(books)[colnames(books)== 'RatingDist3'] <- 'Ratings3stars'
-books$RatingDist4 = as.numeric(sub('4:','',books$RatingDist4))
-colnames(books)[colnames(books)== 'RatingDist4'] <- 'Ratings4stars'
-books$RatingDist5 = as.numeric(sub('5:','',books$RatingDist5))
-colnames(books)[colnames(books)== 'RatingDist5'] <- 'Ratings5stars'
-books$RatingDistTotal = as.numeric(sub('total:','',books$RatingDistTotal))
-colnames(books)[colnames(books)== 'RatingDistTotal'] <- 'TotalRatings'
+for (i in 1:5) {
+  coluna_estrela <- paste("RatingDist", i, sep = "")
+  retirar_trecho <- paste(i, ":", sep = "")
+  novo_nome_coluna <- paste("Ratings", i, "star", sep = "")
+  
+  books[c(coluna_estrela)] <- sub(retirar_trecho, '', books[[c(coluna_estrela)]]) %>%
+    as.numeric()
+  colnames(books)[colnames(books)== c(coluna_estrela)] <- novo_nome_coluna
+}
+books$RatingDistTotal <- sub("total:", "", books$RatingDistTotal) %>%
+  as.numeric()
+colnames(books)[colnames(books)== "RatingDistTotal"] <- 'TotalRatings'
 
-# Pode ser feita a mesma retirada dos trechos de cada coluna, mas utilizando a library "stringr":
+# Pode ser feita a mesma retirada dos trechos de cada coluna, mas utilizando a função "str_sub" da library "stringr":
 # books <- books %>%
 #   mutate(Ratings1star = str_sub(RatingDist1,3))
 ```
@@ -80,8 +81,8 @@ Pode ser realizada uma conferência se a soma das colunas referentes a cada aval
 ```{r}
 
 books_rating_check <- books %>% 
-  select(Ratings1star, Ratings2stars, Ratings3stars, Ratings4stars, Ratings5stars, TotalRatings) %>% 
-  mutate(TotalCheck = Ratings1star + Ratings2stars + Ratings3stars + Ratings4stars + Ratings5stars)
+  select(Ratings1star, Ratings2star, Ratings3star, Ratings4star, Ratings5star, TotalRatings) %>% 
+  mutate(TotalCheck = Ratings1star + Ratings2star + Ratings3star + Ratings4star + Ratings5star)
 books_rating_check$check <- ifelse(books_rating_check$TotalCheck == books_rating_check$TotalRatings, TRUE, FALSE) 
 books_rating_check$check %>%
   table()
@@ -90,7 +91,7 @@ books_rating_check$check %>%
 Selecionamos, então, apenas as colunas desejadas para as análises de variáveis e que serão utilizadas nos gráficos mais abaixo.
 ```{r}
 books_selected <- books %>%
-  select('Name', 'Authors', 'PublishDate', 'PublishYear', 'Language', 'Publisher', 'PagesNumber', 'Rating', 'Ratings1star', 'Ratings2stars', 'Ratings3stars', 'Ratings4stars', 'Ratings5stars', 'TotalRatings', 'CountsOfReview')
+  select('Name', 'Authors', 'PublishDate', 'PublishYear', 'Language', 'Publisher', 'PagesNumber', 'Rating', 'Ratings1star', 'Ratings2star', 'Ratings3star', 'Ratings4star', 'Ratings5star', 'TotalRatings', 'CountsOfReview')
 ```
 
 Confere-se um resumo geral da tabela com as informações selecionadas: se há algum ponto fora da curva, se os valores estão no formato desejado, etc.
@@ -108,50 +109,94 @@ numero de páginas
 *qtd 1 estrela
 *qtd 5 estrela
 ```{r}
-options(scipen=999)
+# Não exibir os valores em notação científica
+options(scipen=999) 
 
+# Função pra calcular a moda
 getmode <- function(v) {
    uniqv <- unique(v)
    uniqv[which.max(tabulate(match(v, uniqv)))]
 }
 
-books_selected %>% summarise(num_obs = n(),
-                             min = min(books_selected$PagesNumber),
-                             max = max(books_selected$PagesNumber),
-                             média = mean(books_selected$PagesNumber),
-                             moda = getmode(books_selected$PagesNumber),
-                             mediana = median(books_selected$PagesNumber),
-                             desvio_padrao = sd(books_selected$PagesNumber))
-summary(books_selected$PagesNumber)
-hist(books_selected$PagesNumber, main="Número de páginas", ylab="Frequência", xlab="Número de páginas")
-boxplot(books_selected$PagesNumber, main="Número de páginas", xlab="Número de páginas")
+books_estat_descritivas <- books_selected %>%
+  select (PagesNumber, PublishYear, Rating, TotalRatings, CountsOfReview) %>%
+  rename ("Numero_paginas" = PagesNumber,
+          "Ano_publicacao" = PublishYear,
+          "Avaliacao_media" = Rating,
+          "Total_avaliacoes" = TotalRatings,
+          "Total_resenhas" = CountsOfReview)
 
-sem_audios <- books_selected %>%
-  filter(PagesNumber >= 10 & PagesNumber <= 1000)
-hist(sem_audios$PagesNumber, main="Número de páginas", ylab="Frequência", xlab="Número de páginas")
-
-summary(books_selected$Rating)
-hist(books_selected$Rating, main="Avaliação média", ylab="Frequência", xlab="Avaliação média")
-boxplot(books_selected$Rating, main="Avaliação média", xlab="Avaliação média")
-
-summary(books_selected$TotalRatings)
-hist(books_selected$TotalRatings, main="Total de avaliações", ylab="Frequência", xlab="Total de avaliações")
-boxplot(books_selected$TotalRatings, main="Total de avaliações", xlab="Total de avaliações")
-
-summary(books_selected$CountsOfReview)
-hist(books_selected$CountsOfReview, main="Quantidade de avaliações escritas", ylab="Frequência", xlab="Quantidade de avaliações escritas")
-boxplot(books_selected$CountsOfReview, main="Quantidade de avaliações escritas", xlab="Quantidade de avaliações escritas")
-```
-```{r}
-descritivas <- books_selected %>%
-  select(PagesNumber, Rating, TotalRatings, CountsOfReview)
-colunas_descritivas = c(colnames(descritivas))
-
-for(i in 1:4){
-  print(summary(descritivas[i]))
-  hist(descritivas[[i]], main=colunas_descritivas[i], ylab="Frequência", xlab=colunas_descritivas[i])
-  boxplot(descritivas[[i]], main=colunas_descritivas[i], xlab=colunas_descritivas[i])
+for(i in 1:5){
+  print(colnames(books_estat_descritivas)[i])
+  print(books_estat_descritivas %>%
+          summarise(numero_observacoes = n(),
+                    min = min(books_estat_descritivas[[i]]),
+                    max = max(books_estat_descritivas[[i]]),
+                    media = mean(books_estat_descritivas[[i]]),
+                    moda = getmode(books_estat_descritivas[[i]]),
+                    mediana = median(books_estat_descritivas[[i]]),
+                    desvio_padrao = sd(books_estat_descritivas[[i]])))
+  switch (i,
+    '1' = {intervalo_paginas <- books_estat_descritivas %>%
+              filter(Numero_paginas >= 10 & Numero_paginas <= 1000)
+           print(ggplot(intervalo_paginas, aes(x = Numero_paginas)) +
+                 geom_histogram(color = "#011C50", fill = "#004A98") +
+                 labs(title = "Quantidade de páginas do livro", subtitle = "Apenas livros que tenham entre 10 e 1000 páginas", x = "Quantidade de páginas", y = "Frequência"))
+           print(ggplot(intervalo_paginas, aes(x = Numero_paginas)) +
+                 geom_boxplot(color = "#011C50", fill = "#004A98") + coord_flip() +
+                 labs(title = "Quantidade de páginas do livro", subtitle = "Apenas livros que tenham entre 10 e 1000 páginas", x = "Quantidade de páginas", y = "Frequência"))
+    },
+    '2' = {intervalo_anos <- books_estat_descritivas %>%
+              filter(Ano_publicacao >= 1500 & Ano_publicacao <= 2020)
+           print(ggplot(intervalo_anos, aes(x = Ano_publicacao)) +
+                 geom_histogram(color = "#011C50", fill = "#004A98") +
+                 labs(title = "Ano de publicação do livro", subtitle = "Apenas livros publicados entre 1500 e 2020", x = "Ano de publicação", y = "Frequência"))
+           print(ggplot(intervalo_anos, aes(x = Ano_publicacao)) +
+                 geom_boxplot(color = "#011C50", fill = "#004A98") + coord_flip() +
+                 labs(title = "Ano de publicação do livro", subtitle = "Apenas livros publicados entre 1500 e 2020", x = "Ano de publicação"))
+    },
+    '3' = {min_avaliacoes <- books_estat_descritivas %>%
+              filter(Total_avaliacoes > 0)
+           print(ggplot(min_avaliacoes, aes(x = Avaliacao_media)) +
+                 geom_histogram(color = "#011C50", fill = "#004A98") +
+                 labs(title = "Avaliação média (rating) do livro", subtitle = "Apenas livros com pelo menos 1 avaliação", x = "Avaliação média (de 0 a 5)", y = "Frequência"))
+           print(ggplot(min_avaliacoes, aes(x = Avaliacao_media)) +
+                 geom_boxplot(color = "#011C50", fill = "#004A98") + coord_flip() +
+                 labs(title = "Avaliação média (rating) do livro", subtitle = "Apenas livros com pelo menos 1 avaliação", x = "Avaliação média (de 0 a 5)"))
+    },
+    '4' = {min_avaliacoes <- books_estat_descritivas %>%
+              filter(Total_avaliacoes > 10000)
+           print(ggplot(min_avaliacoes, aes(x = Total_avaliacoes)) +
+                 geom_histogram(color = "#011C50", fill = "#004A98") +
+                 labs(title = "Quantidade total de avaliações por livro", subtitle = "Apenas livros com pelo menos 10 avaliações", x = "Quantidade de avaliações", y = "Frequência"))
+           print(ggplot(min_avaliacoes, aes(x = Total_avaliacoes)) +
+                 geom_boxplot(color = "#011C50", fill = "#004A98") + coord_flip() +
+                 labs(title = "Quantidade total de avaliações por livro", subtitle = "Apenas livros com pelo menos 10 avaliações", x = "Quantidade de avaliações"))
+    },
+    '5' = {min_resenhas <- books_estat_descritivas %>%
+              filter(Total_resenhas > 10000)
+           print(ggplot(min_resenhas, aes(x = Total_resenhas)) +
+                 geom_histogram(color = "#011C50", fill = "#004A98") +
+                 labs(title = "Quantidade total de resenhas por livro", subtitle = "Apenas livros com pelo menos 1 resenha", x = "Quantidade de resenhas", y = "Frequência"))
+           print(ggplot(min_resenhas, aes(x = Total_resenhas)) +
+                 geom_boxplot(color = "#011C50", fill = "#004A98") + coord_flip() +
+                 labs(title = "Quantidade total de resenhas por livro", subtitle = "Apenas livros com pelo menos 1 resenha", x = "Quantidade de resenhas"))
+    },
+    print("Variável não esperada")
+  )
+  plot.new()
+  dev.off()
 }
+
+print(ggplot(intervalo_anos, aes(x = Ano_publicacao)) +
+                 geom_boxplot(color = "#011C50", fill = "#004A98") + coord_flip() +
+                 labs(title = "Ano de publicação do livro", subtitle = "Apenas livros publicados entre 1500 e 2020", x = "Ano de publicação"))
+
+
+print(ggplot(books_estat_descritivas, aes(x = Total_resenhas)) +
+                 geom_histogram(color = "#011C50", fill = "#004A98") +
+                 xlim(1, 100000) + #ylim(0,100) +
+                 labs(title = "Quantidade total de resenhas por livro", subtitle = "Apenas livros com pelo menos 1 resenha", x = "Quantidade de resenhas", y = "Frequência"))
 ```
 
 # Etapa 5: indicadores
