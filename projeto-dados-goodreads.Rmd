@@ -13,7 +13,7 @@ library(ggforce)
 library(reactable)
 library(htmltools)
 library(reshape2)
-
+library(gridExtra)
 
 remotes::install_github("kcuilla/reactablefmtr") #precisa da última versão 2.1.0 pra poder baixar tabelas, e install.packages n traz a última versão
 library("reactablefmtr")
@@ -85,7 +85,7 @@ books$RatingDistTotal <- sub("total:", "", books$RatingDistTotal) %>%
 colnames(books)[colnames(books)== "RatingDistTotal"] <- 'TotalRatings'
 
 books_problema_aval <- books %>%
-  select(Id, Name, TotalRatings)
+  select(Id, Name, Publisher, TotalRatings, CountsOfReview)
 # Pode ser feita a mesma retirada dos trechos de cada coluna, mas utilizando a função "str_sub" da library "stringr":
 # books <- books %>%
 #   mutate(Ratings1star = str_sub(RatingDist1,3))
@@ -195,33 +195,18 @@ div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center
 
 ```{r}
 
-print(ggplot(book_lang, aes(x = book_lang$Language, y = count)) +
+print(ggplot(books_lang, aes(x = books_lang$Language, y = count)) +
              geom_col(color = color1, fill = color2) +
              labs(title = "Linguagem dos livros", subtitle = "Apenas línguas que tenham pelo menos 100 livros publicados", x = "Linguagem", y = "Frequência"))  
 
-print(ggplot(book_lang, aes(x = book_lang$Language, y = count)) +
-      geom_boxplot(color = color1, fill = color2) +
-      labs(title = "Linguagem dos livros", subtitle = "Apenas línguas que tenham pelo menos 100 livros publicados", x = "Linguagem", y = "Frequência")) 
-
-# número de páginas
-print(ggplot(books_selected, aes(x = PagesNumber)) +
-             geom_histogram(color = color1, fill = color2) +
-             ylim(0,2000000) +
-             stat_bin(geom="text", colour = "grey", aes(label = ifelse(..count.. == max(..count..), ..count.., "" )), vjust = -0.4) +
-             labs(title = "Quantidade de páginas do livro", subtitle = "Todos os livros, independente da quantidade de páginas", x = "Quantidade de páginas", y = "Frequência"))  
-
 ############
-print(ggplot(books_selected, aes(x = 0, y = PagesNumber)) +
-      geom_boxplot(color = color1, fill = color2) +
-      labs(title = "Quantidade de páginas do livro", subtitle = "Todos os livros, independente da quantidade de páginas", x = "Quantidade de páginas", y = "Frequência") +
-      theme(axis.text = element_text(size = 12), title = element_text(colour = color1)))
 
 windowsFonts("Arial" = windowsFont("Arial"))
 print(ggplot(books_selected, aes(x = 0, y = PagesNumber)) +
       geom_boxplot(color = color1, fill = color2) +
-      labs(title = "Quantidade de páginas do livro", subtitle = "Todos os livros, independente da quantidade de páginas", x = "Quantidade de páginas", y = "Frequência") +
-      theme_grey(base_family = "Arial") +
-      theme(axis.text = element_text(size = 12), title = element_text(colour = color1)))
+      labs(title = "Quantidade de páginas do livro", subtitle = "Todos os livros, independente da quantidade de páginas", x = "", y = "Quantidade de páginas")) 
+      #theme_grey(base_family = "Arial") +
+      #theme(axis.text = element_text(size = 12), title = element_text(colour = color1)))
 
 ##########
 
@@ -229,12 +214,12 @@ print(ggplot(books_selected, aes(x = 0, y = PagesNumber)) +
 print(ggplot(books_selected, aes(x = TotalRatings)) +
              geom_histogram(color = color1, fill = color2) +
              ylim(0,2000000) +
-             #stat_bin(geom="text", colour = "grey30", aes(label = ifelse(..count.. == max(..count..), ..count.., "" )), vjust = -0.4) +
+             stat_bin(geom="text", colour = "grey30", aes(label = ifelse(..count.. == max(..count..), ..count.., "" )), vjust = -0.4) +
              labs(title = "Quantidade total de avaliações por livro", subtitle = "Todos os livros, independente da quantidade de avaliações", x = "Quantidade de avaliações", y = "Frequência"))  
 
 print(ggplot(books_selected, aes(x = 0, y = TotalRatings)) +
       geom_boxplot(color = color1, fill = color2) +
-      labs(title = "Quantidade total de avaliações por livro", subtitle = "Todos os livros, independente da quantidade de avaliações", x = "Quantidade de avaliações", y = "Frequência"))
+      labs(title = "Quantidade total de avaliações por livro", subtitle = "Todos os livros, independente da quantidade de avaliações", x = NULL, y = "Quantidade de avaliações"))
 
 ```
 # Etapa 4: estatísticas descritivas
@@ -325,9 +310,9 @@ for(i in 1:5){
                  geom_histogram(color = color1, fill = color2) +
                  labs(title = "Quantidade de páginas do livro", subtitle = "Apenas livros que tenham entre 10 e 1000 páginas", x = "Quantidade de páginas", y = "Frequência") +
                  theme(axis.text = element_text(size = 12)))
-           print(ggplot(intervalo_paginas, aes(x = Numero_paginas)) +
-                 geom_boxplot(color = color1, fill = color2) + coord_flip() +
-                 labs(title = "Quantidade de páginas do livro", subtitle = "Apenas livros que tenham entre 10 e 1000 páginas", x = "Quantidade de páginas", y = "Frequência") +
+           print(ggplot(intervalo_paginas, aes(y = Numero_paginas)) +
+                 geom_boxplot(color = color1, fill = color2) +
+                 labs(title = "Quantidade de páginas do livro", subtitle = "Apenas livros que tenham entre 10 e 1000 páginas", x = NULL, y = "Quantidade de páginas") +
                  theme(axis.text = element_text(size = 12)))
     },
     '2' = {intervalo_anos <- books_estat_descritivas %>%
@@ -336,9 +321,9 @@ for(i in 1:5){
                  geom_histogram(color = color1, fill = color2) +
                  labs(title = "Ano de publicação do livro", subtitle = "Apenas livros publicados entre 1950 e 2020", x = "Ano de publicação", y = "Frequência") +
                  theme(axis.text = element_text(size = 12)))
-           print(ggplot(intervalo_anos, aes(x = Ano_publicacao)) +
-                 geom_boxplot(color = color1, fill = color2) + coord_flip() +
-                 labs(title = "Ano de publicação do livro", subtitle = "Apenas livros publicados entre 1950 e 2020", x = "Ano de publicação") +
+           print(ggplot(intervalo_anos, aes(y = Ano_publicacao)) +
+                 geom_boxplot(color = color1, fill = color2) +
+                 labs(title = "Ano de publicação do livro", subtitle = "Apenas livros publicados entre 1950 e 2020", x = NULL, y = "Ano de publicação") +
                  theme(axis.text = element_text(size = 12)))
     },
     '3' = {min_avaliacoes <- books_estat_descritivas %>%
@@ -347,9 +332,9 @@ for(i in 1:5){
                  geom_histogram(color = color1, fill = color2) +
                  labs(title = "Avaliação média (rating) do livro", subtitle = "Apenas livros com pelo menos 1 avaliação", x = "Avaliação média (de 0 a 5)", y = "Frequência") +
                  theme(axis.text = element_text(size = 12)))
-           print(ggplot(min_avaliacoes, aes(x = Avaliacao_media)) +
-                 geom_boxplot(color = color1, fill = color2) + coord_flip() +
-                 labs(title = "Avaliação média (rating) do livro", subtitle = "Apenas livros com pelo menos 1 avaliação", x = "Avaliação média (de 0 a 5)") +
+           print(ggplot(min_avaliacoes, aes(y = Avaliacao_media)) +
+                 geom_boxplot(color = color1, fill = color2) +
+                 labs(title = "Avaliação média (rating) do livro", subtitle = "Apenas livros com pelo menos 1 avaliação", x = NULL, y = "Avaliação média (de 0 a 5)") +
                  theme(axis.text = element_text(size = 12)))
     },
     '4' = {min_avaliacoes <- books_estat_descritivas %>%
@@ -358,9 +343,9 @@ for(i in 1:5){
                  geom_histogram(color = color1, fill = color2) +
                  labs(title = "Quantidade total de avaliações por livro", subtitle = "Apenas livros mais do que 100.000 avaliações", x = "Quantidade de avaliações", y = "Frequência") +
                  theme(axis.text = element_text(size = 12)))
-           print(ggplot(min_avaliacoes, aes(x = Total_avaliacoes)) +
-                 geom_boxplot(color = color1, fill = color2) + coord_flip() +
-                 labs(title = "Quantidade total de avaliações por livro", subtitle = "Apenas livros mais do que 100.000 avaliações", x = "Quantidade de avaliações") +
+           print(ggplot(min_avaliacoes, aes(y = Total_avaliacoes)) +
+                 geom_boxplot(color = color1, fill = color2) +
+                 labs(title = "Quantidade total de avaliações por livro", subtitle = "Apenas livros mais do que 100.000 avaliações", x = NULL, y = "Quantidade de avaliações") +
                  theme(axis.text = element_text(size = 12)))
     },
     '5' = {min_resenhas <- books_estat_descritivas %>%
@@ -369,9 +354,9 @@ for(i in 1:5){
                  geom_histogram(color = color1, fill = color2) +
                  labs(title = "Quantidade total de resenhas por livro", subtitle = "Apenas livros com mais do que 10.000 resenhas", x = "Quantidade de resenhas", y = "Frequência") +
                  theme(axis.text = element_text(size = 12)))
-           print(ggplot(min_resenhas, aes(x = Total_resenhas)) +
-                 geom_boxplot(color = color1, fill = color2) + coord_flip() +
-                 labs(title = "Quantidade total de resenhas por livro", subtitle = "Apenas livros com mais do que 10.000 resenhas", x = "Quantidade de resenhas") +
+           print(ggplot(min_resenhas, aes(y = Total_resenhas)) +
+                 geom_boxplot(color = color1, fill = color2) +
+                 labs(title = "Quantidade total de resenhas por livro", subtitle = "Apenas livros com mais do que 10.000 resenhas", x = NULL, y = "Quantidade de resenhas") +
                  theme(axis.text = element_text(size = 12)))
     },
     print("Variável não esperada")
@@ -383,57 +368,9 @@ for(i in 1:5){
 
 ```{r}
 #### estatísticas descritivas
-i=1
+i=5
 
-resumo <- books_estat_descritivas %>%
-    summarise("Número de observações" = n(),
-              "Mínimo" = min(books_estat_descritivas[[i]]),
-              "Máximo" = max(books_estat_descritivas[[i]]),
-              "Média" = round(mean(books_estat_descritivas[[i]]), digits=2),
-              "Moda" = round(getmode(books_estat_descritivas[[i]]), digits=2),
-              "Mediana" = round(median(books_estat_descritivas[[i]], digits=2)),
-              "Desvio padrão" = round(sd(books_estat_descritivas[[i]]), digits=2)) %>%
-    melt()
 
-switch (i,
-    '1' = {title = "Numero de páginas do livro"},
-    '2' = {title = "Ano de publicação do livro"},
-    '3' = {title = "Avaliação média do livro"},
-    '4' = {title = "Total de avaliações (ratings) do livro"},
-    '5' = {title = "Total de resenhas (reviews) do livro"},
-    "Sem título"
-  ) 
-
-tabela_resumo <- resumo %>% 
-    reactable(
-      defaultColDef = colDef(
-        align = "center",
-        headerVAlign = "center",
-        vAlign = "center"
-      ),
-      columns = list(
-        variable = colDef(
-          na = "\u274c", 
-          width = 200, 
-          name = "Variável"
-        ),
-        value = colDef(
-          width = 140, 
-          name = "Valor",
-          format = colFormat(separators = TRUE, locales = "pt-BR")
-        )
-      ),
-      bordered = TRUE,
-      highlight = TRUE,
-      striped = TRUE,
-      fullWidth = FALSE,
-    ) 
-  
-div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center",
-    div(title, style="font-size: 13.2pt; font-weight: bolder"),
-    div("Todos os livros", style="font-size: 11pt"),
-    tabela_resumo,
-  )
   
 ```
 # Etapa 5: indicadores
@@ -487,9 +424,52 @@ tabela_aval_ano <- aval_ano %>%
   
 div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center",
     div("Avaliação média e quantidade de avaliações por ano de publicação", style="font-size: 13.2pt; font-weight: bolder"),
-    div("Top 10 anos de publicação com melhor avaliação média", style="font-size: 11pt"),
+    div("Top 10 anos de publicação com maior quantidade de avaliações", style="font-size: 11pt"),
     div("Anos com mais do que 5 livros publicados, entre 1900 e 2020", style="font-size: 8.8pt"),
     tabela_aval_ano
+  )
+
+resumo <- aval_ano %>%
+    summarise("Número de observações" = n(),
+              "Mínimo" = min(qtd_aval),
+              "Máximo" = max(qtd_aval),
+              "Média" = round(mean(qtd_aval), digits=2),
+              "Moda" = round(getmode(qtd_aval), digits=2),
+              "Mediana" = round(median(qtd_aval), digits=2),
+              "Desvio padrão" = round(sd(qtd_aval), digits=2)) %>%
+    melt()
+
+title = "Quantidade total de avaliações por ano de publicação"
+
+tabela_resumo <- resumo %>% 
+    reactable(
+      defaultColDef = colDef(
+        align = "center",
+        headerVAlign = "center",
+        vAlign = "center"
+      ),
+      columns = list(
+        variable = colDef(
+          na = "\u274c", 
+          width = 200, 
+          name = "Variável"
+        ),
+        value = colDef(
+          width = 140, 
+          name = "Valor",
+          format = colFormat(separators = TRUE, locales = "pt-BR")
+        )
+      ),
+      bordered = TRUE,
+      highlight = TRUE,
+      striped = TRUE,
+      fullWidth = FALSE,
+    ) 
+  
+div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center",
+    div(title, style="font-size: 13.2pt; font-weight: bolder"),
+    div("Anos com mais do que 5 livros publicados, entre 1900 e 2020", style="font-size: 11pt"),
+    tabela_resumo,
   )
 
 ```
@@ -610,6 +590,49 @@ div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center
     div("Editoras com pelo menos 10 mil avaliações", style="font-size: 8.8pt"),
     tabela_aval_editora
   )
+
+resumo <- aval_editora2 %>%
+    summarise("Número de observações" = n(),
+              "Mínimo" = min(qtd_aval),
+              "Máximo" = max(qtd_aval),
+              "Média" = round(mean(qtd_aval), digits=2),
+              "Moda" = round(getmode(qtd_aval), digits=2),
+              "Mediana" = round(median(qtd_aval), digits=2),
+              "Desvio padrão" = round(sd(qtd_aval), digits=2)) %>%
+    melt()
+
+title = "Quantidade total de avaliações por editora"
+
+tabela_resumo <- resumo %>% 
+    reactable(
+      defaultColDef = colDef(
+        align = "center",
+        headerVAlign = "center",
+        vAlign = "center"
+      ),
+      columns = list(
+        variable = colDef(
+          na = "\u274c", 
+          width = 200, 
+          name = "Variável"
+        ),
+        value = colDef(
+          width = 140, 
+          name = "Valor",
+          format = colFormat(separators = TRUE, locales = "pt-BR")
+        )
+      ),
+      bordered = TRUE,
+      highlight = TRUE,
+      striped = TRUE,
+      fullWidth = FALSE,
+    ) 
+  
+div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center",
+    div(title, style="font-size: 13.2pt; font-weight: bolder"),
+    div("Editoras com pelo menos 10 mil avaliações", style="font-size: 11pt"),
+    tabela_resumo,
+  )
 ```
 Avaliação média por autor
 Avaliação qtd por autor
@@ -676,6 +699,50 @@ div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center
     div("Autores com pelo menos 10 mil avaliações", style="font-size: 8.8pt"),
     tabela_aval_autor
   )
+
+
+resumo <- aval_autor %>%
+    summarise("Número de observações" = n(),
+              "Mínimo" = min(qtd_aval),
+              "Máximo" = max(qtd_aval),
+              "Média" = round(mean(qtd_aval), digits=2),
+              "Moda" = round(getmode(qtd_aval), digits=2),
+              "Mediana" = round(median(qtd_aval), digits=2),
+              "Desvio padrão" = round(sd(qtd_aval), digits=2)) %>%
+    melt()
+
+title = "Quantidade total de avaliações por autor"
+
+tabela_resumo <- resumo %>% 
+    reactable(
+      defaultColDef = colDef(
+        align = "center",
+        headerVAlign = "center",
+        vAlign = "center"
+      ),
+      columns = list(
+        variable = colDef(
+          na = "\u274c", 
+          width = 200, 
+          name = "Variável"
+        ),
+        value = colDef(
+          width = 140, 
+          name = "Valor",
+          format = colFormat(separators = TRUE, locales = "pt-BR")
+        )
+      ),
+      bordered = TRUE,
+      highlight = TRUE,
+      striped = TRUE,
+      fullWidth = FALSE,
+    ) 
+  
+div(style="font-family: Arial, Times New Roman; color:#0b0b0b; text-align:center",
+    div(title, style="font-size: 13.2pt; font-weight: bolder"),
+    div("Autores com pelo menos 10 mil avaliações", style="font-size: 11pt"),
+    tabela_resumo,
+  )
 ```
 
 # Etapa 6: gráficos
@@ -687,7 +754,9 @@ grafico_ano
 ```
    
 ```{r} 
-aval_editora3 <- aval_editora2 %>%
+aval_editora3 <- books_selected %>%
+  group_by(Publisher) %>%
+  summarise(count = n()) %>%
   filter(!is.na(Publisher)) %>%
   top_n(10, count)
 
@@ -715,7 +784,9 @@ grafico_edit2 <- ggplot(data = aval_editora3) +
                       panel.background = element_blank(),
                       plot.background = element_blank(),
                       plot.title = element_text(face = "bold"))
-ggsave(filename = "imagem.png", width = 8, height = 6, dpi = 140)
+ggsave(filename = "imagem1.png", width = 8, height = 6, dpi = 140)
+
+grafico_edit2
 ```
 
 ```{r}
@@ -732,7 +803,7 @@ aval_autor_filtrado <- aval_autor %>%
   arrange(desc(count))
 aval_autor_filtrado
 
-aval_autor_filtrado$id <- seq(1, nrow(data))
+aval_autor_filtrado$id <- seq(1, nrow(aval_autor_filtrado))
 label_data <- aval_autor_filtrado
 number_of_bar <- nrow(label_data)
 angle <- 90 - 360 * (label_data$id-0.5) /number_of_bar  
@@ -762,7 +833,129 @@ top_autores
 </center>
 
 ```{r}
+top_autor1 <- aval_autor %>%
+  top_n(10, qtd_aval) %>%
+  mutate(identificador = "Maior quantidade\nde avaliações")
 
+top_autor2 <- aval_autor %>%
+  top_n(10, aval_media) %>%
+  mutate(identificador = "Melhor avaliados")
+
+top_autor3 <- rbind(top_autor1, top_autor2)
+
+
+
+top_autores2 <- ggplot(top_autor3, aes(x = qtd_aval, y = aval_media, group = identificador)) +
+  geom_point(aes(color = identificador, shape = identificador), size = 2) +
+  scale_shape_manual(values = c(15, 18)) +
+  scale_color_manual(values = c("#6baed6", "#011d47")) +
+  labs(title = "Quantidade de avaliações por avaliação média dos autores", subtitle = "Top 10 autores com mais avaliações e top 10 autores mais bem avaliados", x = "Quantidade de avaliações", y = "Avaliação média", color = "Top 10 autores", shape = "Top 10 autores")
+ggsave(filename = "imagem2.png", width = 8, height = 5, dpi = 120)
+
+top_autores2
+```
+
+```{r}
+regressao1 = lm(min_avaliacoes$Avaliacao_media~min_avaliacoes$Total_avaliacoes)
+
+summary(regressao1)
+par(mfrow = c(2, 2))
+plot(regressao1)
+
+ggplot(data = min_avaliacoes, mapping = aes(Total_avaliacoes, Avaliacao_media)) +
+geom_point(size = 1) +
+geom_smooth(method = "lm") +
+labs(title = "Regressão linear", subtitle = "Total de avaliações e avaliação média", x = "Quantidade de avaliações", y = "Avaliação média")
+ggsave(filename = "imagem2.png", width = 8, height = 5, dpi = 180)
+
+intercept <- 3.990782745816
+slope <- 0.000000062140
+min_avaliacoes$fitted <- intercept + slope * min_avaliacoes$Total_avaliacoes
+  
+ggplot(data = min_avaliacoes, aes(x = Total_avaliacoes, y = Avaliacao_media)) +
+  geom_abline(slope = slope, intercept = intercept, color = "blue") +
+  geom_segment(aes(xend = Total_avaliacoes, yend = fitted, color = "resid")) +
+  geom_point() +
+  scale_color_manual(values = c(resid = "darkred"), labels = c(resid = "residuals"))
+
+p1 <- ggplot(regressao1, aes(.fitted, .resid)) +
+      geom_point(size = 1) +
+      geom_hline(yintercept = 0) +
+      geom_smooth(se = FALSE) +
+      labs(subtitle = "Residuals vs Fitted", x = "Valores previstos", y = "Resíduos")
+p2 <- ggplot(regressao1) +
+      stat_qq(aes(sample = .stdresid), size = 1) +
+      geom_abline() +
+      labs(subtitle = "Normal Q-Q", x = "Resíduos teóricos", y = "Resíduos padronizados")
+p3 <- ggplot(regressao1, aes(.fitted, sqrt(abs(.stdresid)))) +
+      geom_point(size = 1) +
+      geom_smooth(se = FALSE) +
+      labs(subtitle = "Scale-Location", x = "Valores previstos", y = "Resíduos padronizados positivos")
+p4 <- ggplot(regressao1, aes(.hat, .stdresid)) +
+      geom_vline(linewidth = 2, colour = "white", xintercept = 0) +
+      geom_hline(linewidth = 2, colour = "white", yintercept = 0) +
+      geom_point(size = 1) + geom_smooth(se = FALSE) +
+      labs(subtitle = "Residuals vs Leverage", x = "Alavancagem", y = "Resíduos padronizados")
+
+p <- grid.arrange(p1,p2,p3,p4)
+```
+
+
+```{r}
+regressao2 = lm(min_resenhas$Avaliacao_media~min_resenhas$Total_resenhas)
+
+summary(regressao2)
+par(mfrow = c(2, 2))
+plot(regressao2)
+
+ggplot(data = min_resenhas, mapping = aes(Total_resenhas, Avaliacao_media)) +
+geom_point(size = 1) +
+geom_smooth(method = "lm") +
+labs(title = "Regressão linear", subtitle = "Total de resenhas e avaliação média", x = "Quantidade de resenhas", y = "Avaliação média")
+ggsave(filename = "imagem2.png", width = 8, height = 5, dpi = 180)
+
+intercept <- 3.990782745816
+slope <- 0.000000062140
+min_resenhas$fitted <- intercept + slope * min_resenhas$Total_resenhas
+  
+ggplot(data = min_resenhas, aes(x = Total_resenhas, y = Avaliacao_media)) +
+  geom_abline(slope = slope, intercept = intercept, color = "blue") +
+  geom_segment(aes(xend = Total_resenhas, yend = fitted, color = "resid")) +
+  geom_point() +
+  scale_color_manual(values = c(resid = "darkred"), labels = c(resid = "residuals"))
+
+p1 <- ggplot(regressao2, aes(.fitted, .resid)) +
+      geom_point(size = 1) +
+      geom_hline(yintercept = 0) +
+      geom_smooth(se = FALSE) +
+      labs(subtitle = "Residuals vs Fitted", x = "Valores previstos", y = "Resíduos")
+p2 <- ggplot(regressao2) +
+      stat_qq(aes(sample = .stdresid), size = 1) +
+      geom_abline() +
+      labs(subtitle = "Normal Q-Q", x = "Resíduos teóricos", y = "Resíduos padronizados")
+p3 <- ggplot(regressao2, aes(.fitted, sqrt(abs(.stdresid)))) +
+      geom_point(size = 1) +
+      geom_smooth(se = FALSE) +
+      labs(subtitle = "Scale-Location", x = "Valores previstos", y = "Resíduos padronizados positivos")
+p4 <- ggplot(regressao2, aes(.hat, .stdresid)) +
+      geom_vline(linewidth = 2, colour = "white", xintercept = 0) +
+      geom_hline(linewidth = 2, colour = "white", yintercept = 0) +
+      geom_point(size = 1) + geom_smooth(se = FALSE) +
+      labs(subtitle = "Residuals vs Leverage", x = "Alavancagem", y = "Resíduos padronizados")
+
+p <- grid.arrange(p1,p2,p3,p4)
+
+```
+
+```{r}
+quiquadrado <- books_selected %>%
+  filter(Authors == "J.K. Rowling" | Authors == "William Shakespeare" | Authors == "J.R.R. Tolkien" | Authors == "Jane Austen" | Authors == "C.S. Lewis") %>%
+  filter(Language == "eng" | Language == "en-US" | Language == "en-GB" | Language == "spa" | Language == "fre") %>%
+  group_by(Authors, Language) %>%
+  summarise(count = n(),
+            qtd_aval = sum(TotalRatings)) %>%
+  arrange(Authors)
+quiquadrado
 ```
 
 ```{css styles, eval=FALSE}
